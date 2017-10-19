@@ -1,4 +1,4 @@
-defmodule Mox.Server do
+defmodule Mox.PrivateServer do
   @moduledoc false
 
   use GenServer

@@ -224,7 +224,7 @@ defmodule Mox do
       raise ArgumentError, "unknown function #{name}/#{arity} for mock #{inspect mock}"
     end
 
-    case Mox.Server.add_expectation(self(), key, value) do
+    case server().add_expectation(self(), key, value) do
       :ok ->
         :ok
 
@@ -257,7 +257,7 @@ defmodule Mox do
 
   def allow(mock, owner_pid, allowed_pid)
       when is_atom(mock) and is_pid(owner_pid) and is_pid(allowed_pid) do
-    case Mox.Server.allow(mock, owner_pid, allowed_pid) do
+    case server().allow(mock, owner_pid, allowed_pid) do
       :ok ->
         mock
 
@@ -285,10 +285,10 @@ defmodule Mox do
   """
   def verify_on_exit!(_context \\ %{}) do
     pid = self()
-    Mox.Server.verify_on_exit(pid)
+    server().verify_on_exit(pid)
     ExUnit.Callbacks.on_exit(Mox, fn ->
       verify_mock_or_all!(pid, :all)
-      Mox.Server.exit(pid)
+      server().exit(pid)
     end)
   end
 
@@ -309,7 +309,7 @@ defmodule Mox do
   end
 
   defp verify_mock_or_all!(pid, mock) do
-    pending = Mox.Server.verify(pid, mock)
+    pending = server().verify(pid, mock)
 
     messages =
       for {{module, name, arity}, total, pending} <- pending do
@@ -340,7 +340,7 @@ defmodule Mox do
 
   @doc false
   def __dispatch__(mock, name, arity, args) do
-    case Mox.Server.fetch_fun_to_dispatch(self(), {mock, name, arity}) do
+    case server().fetch_fun_to_dispatch(self(), {mock, name, arity}) do
       :no_expectation ->
         mfa = Exception.format_mfa(mock, name, arity)
         raise UnexpectedCallError, "no expectation defined for #{mfa} in process #{inspect(self())}"
@@ -358,4 +358,17 @@ defmodule Mox do
 
   defp times(1), do: "once"
   defp times(n), do: "#{n} times"
+
+  @doc """
+  Sets mode to either :shared or :private
+  """
+  def set_mode(:shared) do
+    Application.put_env(:mox, :server, Mox.SharedServer)
+  end
+
+  def set_mode(:private) do
+    Application.put_env(:mox, :server, Mox.PrivateServer)
+  end
+
+  defp server, do: Application.get_env(:mox, :server) || Mox.PrivateServer
 end
