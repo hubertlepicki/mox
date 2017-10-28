@@ -27,23 +27,31 @@ defmodule MoxTest do
 
   describe "expect/4" do
     test "is invoked n times" do
-      CalcMock
-      |> expect(:add, 2, fn x, y -> x + y end)
-      |> expect(:mult, fn x, y -> x * y end)
-      |> expect(:add, fn _, _ -> 0 end)
+      for mode <- [:private, :global] do
+        Mox.set_mode(mode)
 
-      assert CalcMock.add(2, 3) == 5
-      assert CalcMock.add(3, 2) == 5
-      assert CalcMock.add(:whatever, :whatever) == 0
-      assert CalcMock.mult(3, 2) == 6
+        CalcMock
+        |> expect(:add, 2, fn x, y -> x + y end)
+        |> expect(:mult, fn x, y -> x * y end)
+        |> expect(:add, fn _, _ -> 0 end)
+
+        assert CalcMock.add(2, 3) == 5
+        assert CalcMock.add(3, 2) == 5
+        assert CalcMock.add(:whatever, :whatever) == 0
+        assert CalcMock.mult(3, 2) == 6
+      end
     end
 
     test "can be recharged" do
-      expect(CalcMock, :add, fn x, y -> x + y end)
-      assert CalcMock.add(2, 3) == 5
+      for mode <- [:private, :global] do
+        Mox.set_mode(mode)
 
-      expect(CalcMock, :add, fn x, y -> x + y end)
-      assert CalcMock.add(3, 2) == 5
+        expect(CalcMock, :add, fn x, y -> x + y end)
+        assert CalcMock.add(2, 3) == 5
+
+        expect(CalcMock, :add, fn x, y -> x + y end)
+        assert CalcMock.add(3, 2) == 5
+      end
     end
 
     test "raises if a non-mock is given" do
@@ -67,59 +75,76 @@ defmodule MoxTest do
     end
 
     test "raises if there is no expectation" do
-      assert_raise Mox.UnexpectedCallError, ~r"no expectation defined for CalcMock\.add/2", fn ->
-        CalcMock.add(2, 3) == 5
+      for mode <- [:private, :global] do
+        Mox.set_mode(mode)
+
+        assert_raise Mox.UnexpectedCallError, ~r"no expectation defined for CalcMock\.add/2", fn ->
+          CalcMock.add(2, 3) == 5
+        end
       end
     end
 
     test "raises if all expectations are consumed" do
-      expect(CalcMock, :add, fn x, y -> x + y end)
-      assert CalcMock.add(2, 3) == 5
+      for mode <- [:private, :global] do
+        Mox.set_mode(mode)
 
-      assert_raise Mox.UnexpectedCallError, ~r"expected CalcMock.add/2 to be called once", fn ->
-        CalcMock.add(2, 3) == 5
-      end
 
-      expect(CalcMock, :add, fn x, y -> x + y end)
-      assert CalcMock.add(2, 3) == 5
+        expect(CalcMock, :add, fn x, y -> x + y end)
+        assert CalcMock.add(2, 3) == 5
 
-      assert_raise Mox.UnexpectedCallError, ~r"expected CalcMock.add/2 to be called 2 times", fn ->
-        CalcMock.add(2, 3) == 5
+        assert_raise Mox.UnexpectedCallError, ~r"expected CalcMock.add/2 to be called once", fn ->
+          CalcMock.add(2, 3) == 5
+        end
+
+        expect(CalcMock, :add, fn x, y -> x + y end)
+        assert CalcMock.add(2, 3) == 5
+
+        assert_raise Mox.UnexpectedCallError, ~r"expected CalcMock.add/2 to be called 2 times", fn ->
+          CalcMock.add(2, 3) == 5
+        end
       end
     end
   end
 
   describe "verify!/0" do
     test "verifies all mocks for the current process" do
-      verify!()
-      expect(CalcMock, :add, fn x, y -> x + y end)
+      for mode <- [:private, :global] do
+        Mox.set_mode(mode)
 
-      message = ~r"expected CalcMock.add/2 to be invoked once but it was invoked 0 times"
-      assert_raise Mox.VerificationError, message, &verify!/0
+        verify!()
+        expect(CalcMock, :add, fn x, y -> x + y end)
 
-      assert CalcMock.add(2, 3) == 5
-      verify!()
-      expect(CalcMock, :add, fn x, y -> x + y end)
+        message = ~r"expected CalcMock.add/2 to be invoked once but it was invoked 0 times"
+        assert_raise Mox.VerificationError, message, &verify!/0
 
-      message = ~r"expected CalcMock.add/2 to be invoked 2 times but it was invoked once"
-      assert_raise Mox.VerificationError, message, &verify!/0
+        assert CalcMock.add(2, 3) == 5
+        verify!()
+        expect(CalcMock, :add, fn x, y -> x + y end)
+
+        message = ~r"expected CalcMock.add/2 to be invoked 2 times but it was invoked once"
+        assert_raise Mox.VerificationError, message, &verify!/0
+      end
     end
   end
 
   describe "verify!/1" do
     test "verifies all mocks for the current process" do
-      verify!(CalcMock)
-      expect(CalcMock, :add, fn x, y -> x + y end)
+      for mode <- [:private, :global] do
+        Mox.set_mode(mode)
 
-      message = ~r"expected CalcMock.add/2 to be invoked once but it was invoked 0 times"
-      assert_raise Mox.VerificationError, message, &verify!/0
+        verify!(CalcMock)
+        expect(CalcMock, :add, fn x, y -> x + y end)
 
-      assert CalcMock.add(2, 3) == 5
-      verify!(CalcMock)
-      expect(CalcMock, :add, fn x, y -> x + y end)
+        message = ~r"expected CalcMock.add/2 to be invoked once but it was invoked 0 times"
+        assert_raise Mox.VerificationError, message, &verify!/0
 
-      message = ~r"expected CalcMock.add/2 to be invoked 2 times but it was invoked once"
-      assert_raise Mox.VerificationError, message, &verify!/0
+        assert CalcMock.add(2, 3) == 5
+        verify!(CalcMock)
+        expect(CalcMock, :add, fn x, y -> x + y end)
+
+        message = ~r"expected CalcMock.add/2 to be invoked 2 times but it was invoked once"
+        assert_raise Mox.VerificationError, message, &verify!/0
+      end
     end
 
     test "raises if a non-mock is given" do
@@ -133,7 +158,7 @@ defmodule MoxTest do
     end
   end
 
-  describe "verify_on_exit!/0" do
+  describe "verify_on_exit!/0 in private mode" do
     setup :verify_on_exit!
 
     test "verifies all mocks even if none is used" do
@@ -146,6 +171,29 @@ defmodule MoxTest do
     end
 
     test "verifies all mocks for the current process on exit with previous verification" do
+      verify!()
+      expect(CalcMock, :add, fn x, y -> x + y end)
+      assert CalcMock.add(2, 3) == 5
+    end
+  end
+
+  describe "verify_on_exit!/0 in global mode" do
+    setup do
+      Mox.set_mode(:global)
+      Mox.verify_on_exit!
+      :ok
+    end
+
+    test "verifies all mocks even if none is used" do
+      :ok
+    end
+
+    test "verifies all mocks on exit" do
+      expect(CalcMock, :add, fn x, y -> x + y end)
+      assert CalcMock.add(2, 3) == 5
+    end
+
+    test "verifies all mocks on exit with previous verification" do
       verify!()
       expect(CalcMock, :add, fn x, y -> x + y end)
       assert CalcMock.add(2, 3) == 5
